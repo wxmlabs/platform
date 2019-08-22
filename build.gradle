@@ -1,0 +1,83 @@
+plugins {
+    id 'java-platform'
+    id 'maven-publish'
+}
+
+group 'com.wxmlabs.platform'
+version '1.0-SNAPSHOT'
+
+ext {
+    set('isReleaseVersion', !version.endsWith('SNAPSHOT'))
+    publicationRepositoryNames = []
+}
+
+def definedRepositories = [
+        [name   : 'wxmlabs-releases',
+         repoPk : 'wxmlabsReleasesUrl',
+         userPk : 'wxmlabsUsername',
+         passPk : 'wxmlabsPassword',
+         publish: isReleaseVersion],
+        [name   : 'wxmlabs-snapshots',
+         repoPk : 'wxmlabsSnapshotsUrl',
+         userPk : 'wxmlabsUsername',
+         passPk : 'wxmlabsPassword',
+         publish: !isReleaseVersion],
+]
+
+definedRepositories.each {
+    String alias = it.name
+    String repo = project.findProperty(it.repoPk)
+    String user = project.findProperty(it.userPk ?: '')
+    String pass = project.findProperty(it.passPk ?: '')
+    if (repo) {
+        project.repositories {
+            maven {
+                name alias
+                url repo
+                if (user && pass)
+                    credentials {
+                        username user
+                        password pass
+                    }
+            }
+        }
+        if (it.publish) {
+            publicationRepositoryNames << alias
+        }
+    }
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    // 按Notation字母顺序排序
+    constraints {
+        // Platform
+
+        // Tools
+
+        // API, SDK
+
+        // for testing only
+
+    }
+}
+
+publishing {
+    publications {
+        "$project.name"(MavenPublication) {
+            artifactId = "wxmlabs-platform"
+            from components.javaPlatform
+            versionMapping {
+                allVariants {
+                    fromResolutionResult()
+                }
+            }
+        }
+    }
+    publicationRepositoryNames.each { String name ->
+        repositories.add(project.repositories.getByName(name))
+    }
+}
