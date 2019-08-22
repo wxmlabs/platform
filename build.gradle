@@ -1,83 +1,142 @@
-plugins {
-    id 'java-platform'
-    id 'maven-publish'
-}
+subprojects {
+    apply plugin: 'java-platform'
+    apply plugin: 'maven-publish'
 
-group 'com.wxmlabs.platform'
-version '1.0-SNAPSHOT'
+    group 'com.wxmlabs.platform'
+    version '1.0-SNAPSHOT'
 
-ext {
-    set('isReleaseVersion', !version.endsWith('SNAPSHOT'))
-    publicationRepositoryNames = []
-}
+    ext {
+        set('isReleaseVersion', !version.endsWith('SNAPSHOT'))
+        publicationRepositoryNames = []
+    }
 
-def definedRepositories = [
-        [name   : 'wxmlabs-releases',
-         repoPk : 'wxmlabsReleasesUrl',
-         userPk : 'wxmlabsUsername',
-         passPk : 'wxmlabsPassword',
-         publish: isReleaseVersion],
-        [name   : 'wxmlabs-snapshots',
-         repoPk : 'wxmlabsSnapshotsUrl',
-         userPk : 'wxmlabsUsername',
-         passPk : 'wxmlabsPassword',
-         publish: !isReleaseVersion],
-]
+    def definedRepositories = [
+            [name   : 'wxmlabs-releases',
+             repoPk : 'wxmlabsReleasesUrl',
+             userPk : 'wxmlabsUsername',
+             passPk : 'wxmlabsPassword',
+             publish: isReleaseVersion],
+            [name   : 'wxmlabs-snapshots',
+             repoPk : 'wxmlabsSnapshotsUrl',
+             userPk : 'wxmlabsUsername',
+             passPk : 'wxmlabsPassword',
+             publish: !isReleaseVersion],
+    ]
 
-definedRepositories.each {
-    String alias = it.name
-    String repo = project.findProperty(it.repoPk)
-    String user = project.findProperty(it.userPk ?: '')
-    String pass = project.findProperty(it.passPk ?: '')
-    if (repo) {
-        project.repositories {
-            maven {
-                name alias
-                url repo
-                if (user && pass)
-                    credentials {
-                        username user
-                        password pass
-                    }
+    definedRepositories.each {
+        String alias = it.name
+        String repo = project.findProperty(it.repoPk)
+        String user = project.findProperty(it.userPk ?: '')
+        String pass = project.findProperty(it.passPk ?: '')
+        if (repo) {
+            project.repositories {
+                maven {
+                    name alias
+                    url repo
+                    if (user && pass)
+                        credentials {
+                            username user
+                            password pass
+                        }
+                }
+            }
+            if (it.publish) {
+                publicationRepositoryNames << alias
             }
         }
-        if (it.publish) {
-            publicationRepositoryNames << alias
-        }
     }
-}
 
-repositories {
-    jcenter()
-}
-
-dependencies {
-    // 按Notation字母顺序排序
-    constraints {
-        // Platform
-
-        // Tools
-
-        // API, SDK
-
-        // for testing only
-
+    repositories {
+        jcenter()
     }
-}
 
-publishing {
-    publications {
-        "$project.name"(MavenPublication) {
-            artifactId = "wxmlabs-platform"
-            from components.javaPlatform
-            versionMapping {
-                allVariants {
-                    fromResolutionResult()
+    publishing {
+        publications {
+            "$project.name"(MavenPublication) {
+                from components.javaPlatform
+                versionMapping {
+                    allVariants {
+                        fromResolutionResult()
+                    }
                 }
             }
         }
+        publicationRepositoryNames.each { String name ->
+            repositories.add(project.repositories.getByName(name))
+        }
     }
-    publicationRepositoryNames.each { String name ->
-        repositories.add(project.repositories.getByName(name))
+}
+
+project('base') {
+    dependencies {
+        // 按Notation字母顺序排序
+        constraints {
+            // Platform
+            api "de.codecentric:spring-boot-admin-dependencies:2.1.5"
+            api "io.zipkin:zipkin-parent:2.16.0"
+            api "org.springframework.boot:spring-boot-dependencies:2.1.6.RELEASE"
+            api "org.springframework.cloud:spring-cloud-contract-dependencies:Greenwich.SR2"
+            api "org.springframework.cloud:spring-cloud-dependencies:2.1.2.RELEASE"
+
+            // Tools
+            api("org.projectlombok:lombok:1.18.8")
+
+            // API, SDK
+            api "commons-cli:commons-cli:1.4"
+            api "commons-codec:commons-codec:1.13"
+            api "org.apache.commons:commons-csv:1.7"
+            def poiVersion = "4.1.0"
+            api "org.apache.poi:poi:${poiVersion}"
+            api "org.apache.poi:poi-excelant:${poiVersion}"
+            api "org.apache.poi:poi-ooxml:${poiVersion}"
+            api "org.apache.poi:poi-ooxml-schemas:${poiVersion}"
+            api "org.apache.poi:poi-scratchpad:${poiVersion}"
+            def bcVersion = "1.62"
+            api "org.bouncycastle:bcmail-jdk15on:${bcVersion}"
+            api "org.bouncycastle:bcpg-jdk15on:${bcVersion}"
+            api "org.bouncycastle:bcpkix-jdk15on:${bcVersion}"
+            api "org.bouncycastle:bcprov-debug-jdk15on:${bcVersion}"
+            api "org.bouncycastle:bcprov-ext-debug-jdk15on:${bcVersion}"
+            api "org.bouncycastle:bcprov-ext-jdk15on:${bcVersion}"
+            api "org.bouncycastle:bcprov-jdk15on:${bcVersion}"
+            api "org.bouncycastle:bctls-jdk15on:${bcVersion}"
+
+            // for testing only
+            api "junit:junit:4.12"
+            def spockVersion = "1.2-groovy-2.5"
+            api "org.spockframework:spock-core:${spockVersion}"
+            api "org.spockframework:spock-spring:${spockVersion}"
+        }
+    }
+
+    publishing {
+        publications {
+            "$project.name"(MavenPublication) {
+                artifactId = "wxmlabs-platform"
+            }
+        }
+    }
+}
+
+project('spring') {
+    dependencies {
+        api platform(project(":base"))
+        api platform("de.codecentric:spring-boot-admin-dependencies")
+        api platform("io.zipkin:zipkin-parent")
+        api platform("org.springframework.boot:spring-boot-dependencies")
+        api platform("org.springframework.cloud:spring-cloud-contract-dependencies")
+        api platform("org.springframework.cloud:spring-cloud-dependencies")
+    }
+
+    javaPlatform {
+        allowDependencies()
+    }
+
+    publishing {
+        publications {
+            "$project.name"(MavenPublication) {
+                artifactId = "wxmlabs-spring-platform"
+            }
+        }
     }
 }
